@@ -12,6 +12,7 @@ export async function addProspect(formData: FormData) {
     email: formData.get('email') as string,
     first_name: formData.get('firstName') as string,
     last_name: formData.get('lastName') as string,
+    country_code: formData.get('countryCode') as string,
     phone: formData.get('phone') as string,
     address: formData.get('address') as string,
     status: formData.get('status') as string,
@@ -33,6 +34,7 @@ const ProspectSchema = z.object({
   email: z.string().email("Invalid email address"),
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
+  country_code: z.string().min(2, "Country code is required"),
   phone: z.string().optional(),
   address: z.string().optional(),
   status: z.enum(['New', 'Contacted', 'Qualified', 'Lost']).default('New'),
@@ -51,7 +53,7 @@ export async function importProspects(formData: FormData) {
   const content = await file.text()
   console.log('File content:', content.substring(0, 100) + '...')
   const records = parse(content, { 
-    columns: ['email', 'first_name', 'last_name', 'phone', 'address', 'status', 'provider'],
+    columns: ['email', 'first_name', 'last_name', 'country_code', 'phone', 'address', 'status', 'provider'],
     skip_empty_lines: true,
     from_line: 2 // Skip the header row
   })

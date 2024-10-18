@@ -10,6 +10,7 @@ interface Prospect {
   first_name: string
   last_name: string
   email: string
+  country_code: string
   phone: string
   address: string
   status: string

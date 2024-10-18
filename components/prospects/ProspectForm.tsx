@@ -49,6 +49,21 @@ export default function ProspectForm() {
             <Input id="email" name="email" type="email" className="col-span-3" required />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="countryCode" className="text-right">Country Code</Label>
+            <Select name="countryCode" defaultValue="+33">
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select country code" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="+33">France (+33)</SelectItem>
+                <SelectItem value="+66">Thailand (+66)</SelectItem>
+                <SelectItem value="+7">Russia (+7)</SelectItem>
+                <SelectItem value="+32">Belgium (+32)</SelectItem>
+                <SelectItem value="+1">USA/Canada (+1)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="phone" className="text-right">Phone</Label>
             <Input id="phone" name="phone" type="tel" className="col-span-3" />
           </div>

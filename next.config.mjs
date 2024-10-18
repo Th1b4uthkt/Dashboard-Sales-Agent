@@ -11,6 +11,9 @@ const nextConfig = {
     }
     return config;
   },
+  images: {
+    domains: ['flagcdn.com'],
+  },
 };
 
 export default nextConfig;

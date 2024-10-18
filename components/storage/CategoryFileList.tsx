@@ -1,7 +1,8 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileIcon, FileTextIcon } from 'lucide-react';
+import { FileIcon, FileTextIcon, Download, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface FileEmbedding {
   id: string;
@@ -49,15 +50,29 @@ export function CategoryFileList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {files.map((file) => (
-              <TableRow key={file.id}>
+            {files.map((file, index) => (
+              <motion.tr
+                key={file.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+              >
                 <TableCell>{getFileIcon(file.file_type)}</TableCell>
                 <TableCell>{file.file_name}</TableCell>
                 <TableCell>{new Date(file.created_at).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Button onClick={() => handleDownload(file)}>Download</Button>
+                  <div className="flex space-x-2">
+                    <Button size="sm" variant="outline" onClick={() => handleDownload(file)}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview
+                    </Button>
+                  </div>
                 </TableCell>
-              </TableRow>
+              </motion.tr>
             ))}
           </TableBody>
         </Table>
