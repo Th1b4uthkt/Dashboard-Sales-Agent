@@ -4,40 +4,55 @@ import React, { useState, useEffect } from 'react'
 import { Input } from "@/components/ui/input"
 import { Search } from 'lucide-react'
 import { StorageModal } from '@/components/storage/StorageModal'
+import { CategoryFileList } from '@/components/storage/CategoryFileList'
 import { createClient } from '@/utils/supabase/client'
 
 interface FileEmbedding {
   id: string;
   file_name: string;
   file_path: string;
+  file_type: string;
+  category_id: number;
   created_at: string;
+  // Add other fields as necessary
 }
 
 export default function StoragePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [files, setFiles] = useState<FileEmbedding[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchFiles();
   }, []);
 
   const fetchFiles = async () => {
+    console.log('Fetching files...');
+    setIsLoading(true);
+    setError(null);
     const supabase = createClient();
     const { data, error } = await supabase
       .from('file_embeddings')
-      .select('*')
+      .select('id, file_name, file_path, file_type, category_id, created_at')
       .order('created_at', { ascending: false });
+
+    console.log('Fetch result:', { data, error });
 
     if (error) {
       console.error('Error fetching files:', error);
+      setError('Failed to load files. Please try again.');
     } else {
       setFiles(data || []);
     }
+    setIsLoading(false);
   };
 
   const filteredFiles = files.filter(file =>
     file.file_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const categories = ['Knowledges', 'Script', 'Products', 'Context'];
 
   return (
     <div className="space-y-6">
@@ -53,24 +68,25 @@ export default function StoragePage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <StorageModal />
+        <StorageModal onUploadSuccess={fetchFiles} />
       </div>
 
-      <div className="bg-white/10 rounded-lg p-4">
-        <h3 className="text-xl font-semibold mb-4">Uploaded TXT Files</h3>
-        {filteredFiles.length > 0 ? (
-          <ul className="space-y-2">
-            {filteredFiles.map((file) => (
-              <li key={file.id} className="flex justify-between items-center">
-                <span>{file.file_name}</span>
-                <span>{new Date(file.created_at).toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No files uploaded yet.</p>
-        )}
-      </div>
+      {isLoading ? (
+        <div>Loading files...</div>
+      ) : error ? (
+        <div className="text-red-500">{error}</div>
+      ) : (
+        <div className="space-y-6">
+          {categories.map((categoryName, index) => (
+            <CategoryFileList
+              key={index}
+              categoryId={index + 1}
+              categoryName={categoryName}
+              files={filteredFiles.filter(file => file.category_id === index + 1)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

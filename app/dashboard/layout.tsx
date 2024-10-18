@@ -1,4 +1,5 @@
 import { Dashboard } from "@/components/dashboard/ai-agent-dashboard"
+import '../polyfills';
 
 export default function DashboardLayout({
   children,
