@@ -84,7 +84,7 @@ export async function importProspects(formData: FormData) {
   const supabase = createClient()
   
   for (const record of validatedRecords) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('prospects')
       .upsert(record, { 
         onConflict: 'email',

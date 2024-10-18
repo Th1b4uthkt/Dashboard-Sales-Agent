@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -31,12 +31,56 @@ import {
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
+import { createClient } from '@/utils/supabase/client'
+import { useToast } from "@/hooks/use-toast"
+import { AuthModal } from '@/components/auth/AuthModal'
+import { logout } from '@/app/actions/auth'
 
 interface DashboardProps {
   children: React.ReactNode
 }
 
+interface User {
+  email: string;
+  user_metadata: {
+    avatar_url?: string;
+  };
+}
+
 export function Dashboard({ children }: DashboardProps) {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const { toast } = useToast();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser({
+            email: session.user.email || '',
+            user_metadata: session.user.user_metadata
+          });
+          toast({ title: "Signed in successfully" });
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          toast({ title: "Signed out successfully" });
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, toast]);
+
+  const handleLogout = async () => {
+    const result = await logout();
+    if (result.error) {
+      toast({ title: "Error signing out", description: result.error, variant: "destructive" });
+    }
+  };
+
   const menuItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
     { href: "/dashboard/prospects", icon: UserCheck, label: "Prospects" },
@@ -137,22 +181,29 @@ export function Dashboard({ children }: DashboardProps) {
                   size="icon"
                   className="overflow-hidden rounded-full"
                 >
-                  <Image
-                    src="/placeholder-user.jpg"
-                    width={36}
-                    height={36}
-                    alt="Avatar"
-                    className="overflow-hidden rounded-full"
-                  />
+                  {user ? (
+                    <Image
+                      src={user.user_metadata.avatar_url || "/placeholder-user.jpg"}
+                      width={36}
+                      height={36}
+                      alt="Avatar"
+                      className="overflow-hidden rounded-full"
+                    />
+                  ) : (
+                    <UserCheck className="h-6 w-6" />
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 bg-card text-card-foreground">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuItem>Support</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Logout</DropdownMenuItem>
+                {user ? (
+                  <>
+                    <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={handleLogout}>Logout</DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>Login</DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
@@ -161,6 +212,7 @@ export function Dashboard({ children }: DashboardProps) {
           </main>
         </div>
       </div>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   )
 }

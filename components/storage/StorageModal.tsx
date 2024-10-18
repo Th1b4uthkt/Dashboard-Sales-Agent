@@ -4,14 +4,27 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from '@/utils/supabase/client';
+import { useToast } from "@/hooks/use-toast";
 
 export function StorageModal() {
   const [isUploading, setIsUploading] = useState(false);
-  const [folderName, setFolderName] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const { toast } = useToast();
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile && selectedFile.type === 'text/plain') {
+      setFile(selectedFile);
+    } else {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a valid TXT file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpload = async () => {
     if (!file) return;
 
     setIsUploading(true);
@@ -19,55 +32,46 @@ export function StorageModal() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/upload-and-embed', {
         method: 'POST',
         body: formData,
       });
       const result = await response.json();
-      console.log('File uploaded:', result);
+      if (result.success) {
+        toast({
+          title: "Upload successful",
+          description: "File uploaded and embedded successfully",
+        });
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       console.error('Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const handleCreateFolder = async () => {
-    if (!folderName) return;
-    const supabase = createClient();
-    const { data, error } = await supabase.storage.from('files').upload(`${folderName}/.keep`, new Blob([]));
-    if (error) {
-      console.error('Folder creation error:', error);
-    } else {
-      console.log('Folder created:', data);
-      setFolderName('');
+      setFile(null);
     }
   };
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>Open Storage Actions</Button>
+        <Button>Upload TXT File</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Storage Actions</DialogTitle>
+          <DialogTitle>Upload TXT File</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <h3 className="mb-2">Upload File</h3>
-            <Input type="file" onChange={handleFileUpload} disabled={isUploading} />
-          </div>
-          <div>
-            <h3 className="mb-2">Create Folder</h3>
-            <Input
-              type="text"
-              placeholder="Folder name"
-              value={folderName}
-              onChange={(e) => setFolderName(e.target.value)}
-            />
-            <Button onClick={handleCreateFolder} className="mt-2">Create Folder</Button>
-          </div>
+          <Input type="file" accept=".txt" onChange={handleFileChange} disabled={isUploading} />
+          <Button onClick={handleUpload} disabled={!file || isUploading}>
+            {isUploading ? 'Uploading...' : 'Upload and Embed'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
