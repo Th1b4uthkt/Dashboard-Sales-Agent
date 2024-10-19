@@ -1,11 +1,14 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { login, register } from '@/app/actions/auth';
+import { login, signup } from '@/app/actions/auth';
 import { z } from 'zod';
+import { useRouter } from 'next/navigation';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -17,6 +20,7 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,13 +28,17 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     try {
       authSchema.parse({ email, password });
       
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('password', password);
+      
       if (isLogin) {
-        const result = await login(email, password);
-        if (result.error) throw new Error(result.error);
-        toast({ title: "Logged in successfully" });
+        const result = await login(formData);
+        if ('error' in result) throw new Error(result.error);
+        router.push('/dashboard');
       } else {
-        const result = await register(email, password);
-        if (result.error) throw new Error(result.error);
+        const result = await signup(formData);
+        if ('error' in result) throw new Error(result.error);
         toast({ title: "Signed up successfully. Please check your email for verification." });
       }
       

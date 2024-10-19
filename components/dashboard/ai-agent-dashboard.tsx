@@ -76,8 +76,11 @@ export function Dashboard({ children }: DashboardProps) {
 
   const handleLogout = async () => {
     const result = await logout();
-    if (result.error) {
+    if ('error' in result) {
       toast({ title: "Error signing out", description: result.error, variant: "destructive" });
+    } else {
+      // La redirection est gérée dans la fonction logout
+      toast({ title: "Signed out successfully" });
     }
   };
 
@@ -92,6 +95,7 @@ export function Dashboard({ children }: DashboardProps) {
     { href: "/dashboard/tools", icon: Zap, label: "Tools" },
     { href: "/dashboard/agent-ai", icon: Bot, label: "Agent AI" },
     { href: "https://www.ai-consultant.fr/", icon: BrainCircuit, label: "AI-consultant" },
+    { href: "/dashboard/retell", icon: Phone, label: "Retell" },
   ]
 
   return (
