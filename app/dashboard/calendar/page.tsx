@@ -1,41 +1,57 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Calendar } from "@/components/ui/calendar"
+// Suppression de cette ligne pour résoudre l'erreur de 'Calendar' non utilisé
+// import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Users } from 'lucide-react'
-import { getEvents, createEvent as apiCreateEvent, updateEvent, deleteEvent } from "@/services/calcom-api"
-import { format } from 'date-fns'
+import { getEvents, createEvent, updateEvent, deleteEvent } from "@/services/calcom-api"
+import { format, parseISO } from 'date-fns'
 
 interface CalendarEvent {
-  id: string
-  title: string
-  description: string
-  startTime: string
-  endTime: string
-  participants: string[]
-  type: 'appointment' | 'call' | 'task'
+  id: string;
+  title: string;
+  description: string;
+  startTime: string | Date;  // Change this to allow both string and Date
+  endTime: string | Date;    // Change this to allow both string and Date
+  participants: string[];
+  type: 'appointment' | 'call' | 'task';
+  attendees?: { email: string }[];
+}
+
+// Ajoutez cette fonction utilitaire en haut du fichier, après les imports
+function formatDateForInput(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().slice(0, 16); // Format YYYY-MM-DDTHH:mm
 }
 
 export default function CalendarPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [view, setView] = useState<'month' | 'week' | 'day'>('week')
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  // Commentez ces lignes si elles ne sont pas utilisées pour le moment
+  // const [isLoading, setIsLoading] = useState(false);
+  // const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEvents()
   }, [])
 
   async function fetchEvents() {
+    // setIsLoading(true);
+    // setError(null);
     try {
-      const fetchedEvents = await getEvents()
-      setEvents(fetchedEvents)
+      const fetchedEvents = await getEvents();
+      setEvents(fetchedEvents);
     } catch (error) {
-      console.error('Failed to fetch events:', error)
+      console.error('Failed to fetch events:', error);
+      // setError('Failed to load events. Please check your API key and permissions.');
+    } finally {
+      // setIsLoading(false);
     }
   }
 
@@ -52,50 +68,62 @@ export default function CalendarPage() {
   }
 
   function getHoursInDay() {
-    return Array.from({ length: 24 }, (_, i) => i)
+    return Array.from({ length: 13 }, (_, i) => i + 8);
   }
 
-  const handleCreateEvent = (calendarEvent: CalendarEvent) => {
-    // Convertir CalendarEvent en Event
-    const event = new Event('custom');
-    Object.assign(event, {
-      id: calendarEvent.id,
-      title: calendarEvent.title,
-      description: calendarEvent.description,
-      startTime: calendarEvent.startTime,
-      endTime: calendarEvent.endTime,
-      participants: calendarEvent.participants,
-      type: calendarEvent.type
-    });
-
-    apiCreateEvent(event).then(() => {
-      fetchEvents();
-    }).catch(error => {
+  const handleCreateEvent = async (calendarEvent: CalendarEvent) => {
+    try {
+      await createEvent(calendarEvent);
+      await fetchEvents();
+    } catch (error) {
       console.error('Failed to create event:', error);
-    });
+      // setError('Failed to create event. Please try again.');
+    }
   };
 
-  const handleUpdateEvent = (eventId: string, event: Partial<CalendarEvent>) => {
-    updateEvent(eventId, event).then(() => {
-      fetchEvents();
-    }).catch(error => {
+  const handleUpdateEvent = async (eventId: string, event: Partial<CalendarEvent>) => {
+    try {
+      await updateEvent(eventId, event);
+      await fetchEvents();
+    } catch (error) {
       console.error('Failed to update event:', error);
-    });
+      // setError('Failed to update event. Please try again.');
+    }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    deleteEvent(id).then(() => {
-      fetchEvents();
-    }).catch(error => {
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await deleteEvent(id);
+      await fetchEvents();
+    } catch (error) {
       console.error('Failed to delete event:', error);
-    });
+      // setError('Failed to delete event. Please try again.');
+    }
+  };
+
+  const formatDate = (date: string | Date) => {
+    try {
+      return format(typeof date === 'string' ? parseISO(date) : date, 'PPP');
+    } catch {
+      console.error('Invalid date:', date);
+      return 'Invalid date';
+    }
+  };
+
+  const formatTime = (date: string | Date) => {
+    try {
+      return format(typeof date === 'string' ? parseISO(date) : date, 'p');
+    } catch {
+      console.error('Invalid time:', date);
+      return 'Invalid time';
+    }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-white">Calendar</h2>
-        <div className="flex space-x-2">
+    <div className="space-y-4 p-4 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
+        <h2 className="text-3xl font-bold text-white mb-4 sm:mb-0">Calendar</h2>
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <Select value={view} onValueChange={(value: 'month' | 'week' | 'day') => setView(value)}>
             <SelectTrigger className="w-[120px]">
               <SelectValue placeholder="Select view" />
@@ -149,7 +177,7 @@ export default function CalendarPage() {
         </div>
       </div>
       
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <Button variant="outline" size="sm" onClick={() => setDate(prev => {
           const newDate = new Date(prev!)
           newDate.setDate(newDate.getDate() - 7)
@@ -170,41 +198,43 @@ export default function CalendarPage() {
       </div>
 
       {view === 'week' && (
-        <div className="grid grid-cols-8 gap-2">
-          <div className="col-span-1"></div>
-          {getDaysInWeek(date!).map((day, index) => (
-            <div key={index} className="text-center font-semibold">
-              {format(day, 'EEE d')}
-            </div>
-          ))}
-          {getHoursInDay().map((hour) => (
-            <React.Fragment key={hour}>
-              <div className="text-right pr-2">{hour}:00</div>
-              {getDaysInWeek(date!).map((day, dayIndex) => (
-                <div key={`${hour}-${dayIndex}`} className="border border-gray-200 h-12 relative">
-                  {events
-                    .filter(event => {
-                      const eventDate = new Date(event.startTime)
-                      return eventDate.getDate() === day.getDate() && 
-                             eventDate.getMonth() === day.getMonth() && 
-                             eventDate.getHours() === hour
-                    })
-                    .map(event => (
-                      <div 
-                        key={event.id} 
-                        className={`absolute top-0 left-0 right-0 p-1 text-xs ${
-                          event.type === 'appointment' ? 'bg-blue-200' :
-                          event.type === 'call' ? 'bg-green-200' : 'bg-yellow-200'
-                        }`}
-                      >
-                        {event.title}
-                      </div>
-                    ))
-                  }
-                </div>
-              ))}
-            </React.Fragment>
-          ))}
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-8 gap-2 min-w-[800px]">
+            <div className="col-span-1"></div>
+            {getDaysInWeek(date!).map((day, index) => (
+              <div key={index} className="text-center font-semibold">
+                {format(day, 'EEE d')}
+              </div>
+            ))}
+            {getHoursInDay().map((hour) => (
+              <React.Fragment key={hour}>
+                <div className="text-right pr-2">{hour}:00</div>
+                {getDaysInWeek(date!).map((day, dayIndex) => (
+                  <div key={`${hour}-${dayIndex}`} className="border border-gray-200 h-16 relative">
+                    {events
+                      .filter(event => {
+                        const eventStart = new Date(event.startTime);
+                        return eventStart.getDate() === day.getDate() &&
+                               eventStart.getMonth() === day.getMonth() &&
+                               eventStart.getHours() === hour;
+                      })
+                      .map(event => (
+                        <div 
+                          key={event.id} 
+                          className={`absolute top-0 left-0 right-0 p-1 text-xs ${
+                            event.type === 'appointment' ? 'bg-blue-200' :
+                            event.type === 'call' ? 'bg-green-200' : 'bg-yellow-200'
+                          }`}
+                        >
+                          {event.title}
+                        </div>
+                      ))
+                    }
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       )}
 
@@ -213,7 +243,7 @@ export default function CalendarPage() {
           {getHoursInDay().map((hour) => (
             <div key={hour} className="flex items-center">
               <div className="w-16 text-right pr-2">{hour}:00</div>
-              <div className="flex-1 border border-gray-200 h-12 relative">
+              <div className="flex-1 border border-gray-200 h-16 relative">
                 {events
                   .filter(event => {
                     const eventDate = new Date(event.startTime)
@@ -240,69 +270,114 @@ export default function CalendarPage() {
       )}
 
       {view === 'month' && (
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          className="rounded-md border"
-        />
+        <div className="grid grid-cols-7 gap-2">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center font-semibold">{day}</div>
+          ))}
+          {Array.from({ length: 35 }, (_, i) => {
+            const currentDate = new Date(date!.getFullYear(), date!.getMonth(), i - date!.getDay() + 1);
+            const isCurrentMonth = currentDate.getMonth() === date!.getMonth();
+            const dayEvents = events.filter(event => {
+              const eventDate = new Date(event.startTime);
+              return eventDate.getDate() === currentDate.getDate() &&
+                     eventDate.getMonth() === currentDate.getMonth() &&
+                     eventDate.getFullYear() === currentDate.getFullYear();
+            });
+            
+            return (
+              <div key={i} className={`border p-2 h-32 overflow-y-auto ${isCurrentMonth ? 'bg-white' : 'bg-gray-100'}`}>
+                <div className="font-semibold">{format(currentDate, 'd')}</div>
+                {dayEvents.map(event => (
+                  <div key={event.id} className={`text-xs p-1 mt-1 rounded ${
+                    event.type === 'appointment' ? 'bg-blue-200' :
+                    event.type === 'call' ? 'bg-green-200' : 'bg-yellow-200'
+                  }`}>
+                    {event.title}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      <div className="mt-4">
-        <h3 className="text-lg font-semibold mb-2">Upcoming Events</h3>
-        {events.map(event => (
-          <div key={event.id} className="bg-secondary p-4 rounded-md mb-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <h4 className="font-semibold">{event.title}</h4>
-                <p className="text-sm text-gray-500">{event.description}</p>
-                <div className="flex items-center mt-2">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  <span className="text-sm">{format(new Date(event.startTime), 'PPP')}</span>
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold mb-4">Upcoming Events</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {events.map(event => (
+            <div key={event.id} className="bg-secondary p-4 rounded-md">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-semibold">{event.title}</h4>
+                  <p className="text-sm text-gray-500 mt-1">{event.description}</p>
+                  <div className="flex items-center mt-2">
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    <span className="text-sm">{formatDate(event.startTime)}</span>
+                  </div>
+                  <div className="flex items-center mt-1">
+                    <Clock className="h-4 w-4 mr-2" />
+                    <span className="text-sm">
+                      {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                    </span>
+                  </div>
+                  <div className="flex items-center mt-1">
+                    <Users className="h-4 w-4 mr-2" />
+                    <span className="text-sm">{event.participants.join(', ')}</span>
+                  </div>
                 </div>
-                <div className="flex items-center mt-1">
-                  <Clock className="h-4 w-4 mr-2" />
-                  <span className="text-sm">{format(new Date(event.startTime), 'p')} - {format(new Date(event.endTime), 'p')}</span>
+                <div className="flex space-x-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">Edit</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Event</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <Input id="editTitle" defaultValue={event.title} />
+                        <Textarea id="editDescription" defaultValue={event.description} />
+                        <Input 
+                          id="editStartTime" 
+                          type="datetime-local" 
+                          defaultValue={formatDateForInput(event.startTime)} 
+                        />
+                        <Input 
+                          id="editEndTime" 
+                          type="datetime-local" 
+                          defaultValue={formatDateForInput(event.endTime)} 
+                        />
+                        <Input id="editParticipants" defaultValue={event.participants.join(', ')} />
+                        <Select defaultValue={event.type}>
+                          <SelectTrigger id="editEventType">
+                            <SelectValue placeholder="Event Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="appointment">Appointment</SelectItem>
+                            <SelectItem value="call">Call</SelectItem>
+                            <SelectItem value="task">Task</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={() => {
+                        const updatedEventData: Partial<CalendarEvent> = {
+                          title: (document.getElementById('editTitle') as HTMLInputElement).value,
+                          description: (document.getElementById('editDescription') as HTMLTextAreaElement).value,
+                          startTime: (document.getElementById('editStartTime') as HTMLInputElement).value,
+                          endTime: (document.getElementById('editEndTime') as HTMLInputElement).value,
+                          participants: (document.getElementById('editParticipants') as HTMLInputElement).value.split(','),
+                          type: (document.getElementById('editEventType') as HTMLSelectElement).value as 'appointment' | 'call' | 'task',
+                        };
+                        handleUpdateEvent(event.id, updatedEventData);
+                      }}>Save Changes</Button>
+                      <Button onClick={() => handleDeleteEvent(event.id)}>Delete Event</Button>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                <div className="flex items-center mt-1">
-                  <Users className="h-4 w-4 mr-2" />
-                  <span className="text-sm">{event.participants.join(', ')}</span>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Event</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <Input id="title" defaultValue={event.title} />
-                      <Textarea id="description" defaultValue={event.description} />
-                      <Input id="startTime" type="datetime-local" defaultValue={event.startTime} />
-                      <Input id="endTime" type="datetime-local" defaultValue={event.endTime} />
-                      <Input id="participants" defaultValue={event.participants.join(', ')} />
-                    </div>
-                    <Button onClick={() => {
-                      const updatedEventData: Partial<CalendarEvent> = {
-                        title: (document.getElementById('editTitle') as HTMLInputElement).value,
-                        description: (document.getElementById('editDescription') as HTMLTextAreaElement).value,
-                        startTime: (document.getElementById('editStartTime') as HTMLInputElement).value,
-                        endTime: (document.getElementById('editEndTime') as HTMLInputElement).value,
-                        participants: (document.getElementById('editParticipants') as HTMLInputElement).value.split(','),
-                        type: (document.getElementById('editEventType') as HTMLSelectElement).value as 'appointment' | 'call' | 'task',
-                      };
-                      handleUpdateEvent(event.id, updatedEventData);
-                    }}>Save Changes</Button>
-                    <Button onClick={() => handleDeleteEvent(event.id)}>Delete Event</Button>
-                  </DialogContent>
-                </Dialog>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

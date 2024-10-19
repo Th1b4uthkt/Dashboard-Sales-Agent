@@ -1,5 +1,7 @@
 import React from 'react'
-import { Draggable } from '@hello-pangea/dnd'
+import { useDraggable } from '@dnd-kit/core'
+// Supprimez cette importation si elle n'est pas utilisée
+// import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent } from "@/components/ui/card"
 
 interface Task {
@@ -10,24 +12,31 @@ interface Task {
 
 interface TaskItemProps {
   task: Task
-  index: number
 }
 
-export function TaskItem({ task, index }: TaskItemProps) {
+export function TaskItem({ task }: TaskItemProps) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: task.id,
+    data: {
+      task,
+    },
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
+
   return (
-    <Draggable draggableId={task.id} index={index}>
-      {(provided) => (
-        <Card
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className="bg-white/5 hover:bg-white/10 transition-colors"
-        >
-          <CardContent className="p-4">
-            {task.content}
-          </CardContent>
-        </Card>
-      )}
-    </Draggable>
+    <Card
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-white/5 hover:bg-white/10 transition-colors cursor-grab"
+    >
+      <CardContent className="p-4">
+        {task.content}
+      </CardContent>
+    </Card>
   )
 }

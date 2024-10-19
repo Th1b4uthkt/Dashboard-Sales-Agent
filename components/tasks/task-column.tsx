@@ -1,12 +1,17 @@
 import React from 'react'
-import { Droppable } from '@hello-pangea/dnd'
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useDroppable } from '@dnd-kit/core'
+// Supprimez ces importations si elles ne sont pas utilisées
+// import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+// import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { TaskItem } from './task-item'
 
 interface Task {
   id: string
+  user_id: string
   content: string
   status: 'todo' | 'in-progress' | 'done'
+  created_at: string
+  updated_at: string
 }
 
 interface TaskColumnProps {
@@ -16,27 +21,16 @@ interface TaskColumnProps {
 }
 
 export function TaskColumn({ title, status, tasks }: TaskColumnProps) {
+  const { setNodeRef } = useDroppable({
+    id: status,
+  });
+
   return (
-    <Card className="bg-white/10 text-white">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Droppable droppableId={status}>
-          {(provided) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              className="space-y-2"
-            >
-              {tasks.map((task, index) => (
-                <TaskItem key={task.id} task={task} index={index} />
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </CardContent>
-    </Card>
-  )
+    <div ref={setNodeRef}>
+      <h2>{title}</h2>
+      {tasks.map((task) => (
+        <TaskItem key={task.id} task={task} />
+      ))}
+    </div>
+  );
 }
