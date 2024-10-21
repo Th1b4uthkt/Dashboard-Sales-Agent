@@ -6,6 +6,8 @@ interface PhoneNumber {
   id: string;
   number: string;
   status: string;
+  nickname: string;
+  agentId: string;
 }
 
 interface PhoneNumberListProps {
@@ -21,17 +23,19 @@ export function PhoneNumberList({ phoneNumbers }: PhoneNumberListProps) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>ID</TableHead>
           <TableHead>Number</TableHead>
+          <TableHead>Nickname</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead>Agent ID</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {phoneNumbers.map((phoneNumber) => (
           <TableRow key={phoneNumber.id}>
-            <TableCell>{phoneNumber.id}</TableCell>
             <TableCell>{phoneNumber.number}</TableCell>
+            <TableCell>{phoneNumber.nickname || 'N/A'}</TableCell>
             <TableCell>{phoneNumber.status}</TableCell>
+            <TableCell>{phoneNumber.agentId || 'N/A'}</TableCell>
           </TableRow>
         ))}
       </TableBody>

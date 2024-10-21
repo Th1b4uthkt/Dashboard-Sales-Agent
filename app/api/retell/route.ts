@@ -1,79 +1,55 @@
 import { NextResponse } from 'next/server';
-import Retell from 'retell-sdk';
+import { retellClient } from '@/utils/retell-client';
+import { Agent, PhoneNumber, LLM } from '@/types/retell';
 
-// Interfaces pour les réponses de l'API
-interface PhoneNumberResponse {
-  phone_number: string;
-  phone_number_pretty: string;
-  inbound_agent_id: string | null;
-  outbound_agent_id: string | null;
-  area_code: number;
-  nickname: string | null;
-  last_modification_timestamp: number;
-}
-
-interface AgentResponse {
+interface RawAgent {
   agent_id: string;
-  agent_name?: string | null;
+  agent_name?: string;
   llm_websocket_url: string;
+  voice_id: string;
+  llm_id?: string;
 }
 
-interface LLMResponse {
+interface RawPhoneNumber {
+  phone_number: string;
+  phone_number_pretty?: string;
+  inbound_agent_id?: string;
+  outbound_agent_id?: string;
+  nickname?: string;
+}
+
+interface RawLLM {
   llm_id: string;
   model?: string;
 }
 
-type PhoneNumberListResponse = PhoneNumberResponse[];
-type AgentListResponse = AgentResponse[];
-type LLMListResponse = LLMResponse[];
-
-// Interfaces pour les données transformées
-interface RetellAgent {
-  agent_id: string;
-  agent_name: string;
-  llm_websocket_url: string;
-}
-
-interface RetellPhoneNumber {
-  phone_number: string;
-  phone_number_pretty: string;
-  inbound_agent_id: string | null;
-  outbound_agent_id: string | null;
-  area_code: number;
-  nickname: string | null;
-  last_modification_timestamp: number;
-}
-
-interface RetellLLM {
-  llm_id: string;
-  model: string;
-}
-
-// Fonctions de transformation
-const transformAgents = (agents: AgentListResponse): RetellAgent[] => {
-  return agents.map((agent) => ({
-    agent_id: agent.agent_id,
-    agent_name: agent.agent_name || '',
+function transformAgent(agent: RawAgent): Agent {
+  return {
+    id: agent.agent_id,
+    name: agent.agent_name || 'Unnamed Agent',
     llm_websocket_url: agent.llm_websocket_url,
-  }));
-};
+    voice_id: agent.voice_id,
+    llm_id: agent.llm_id || agent.llm_websocket_url.split('/').pop() || '',
+  };
+}
 
-const transformPhoneNumbers = (phoneNumbers: PhoneNumberListResponse): RetellPhoneNumber[] => {
-  return phoneNumbers.map((phone) => ({
-    ...phone
-  }));
-};
+function transformPhoneNumber(phone: RawPhoneNumber): PhoneNumber {
+  return {
+    id: phone.phone_number,
+    number: phone.phone_number_pretty || phone.phone_number,
+    status: phone.inbound_agent_id ? 'active' : 'inactive',
+    nickname: phone.nickname || '',
+    agentId: phone.inbound_agent_id || phone.outbound_agent_id || '',
+  };
+}
 
-const transformLLMs = (llms: LLMListResponse): RetellLLM[] => {
-  return llms.map((llm) => ({
-    llm_id: llm.llm_id,
-    model: llm.model || '',
-  }));
-};
-
-const client = new Retell({
-  apiKey: process.env.RETELL_API_KEY || '',
-});
+function transformLLM(llm: RawLLM): LLM {
+  return {
+    id: llm.llm_id,
+    name: llm.model || 'Unknown Model',
+    provider: llm.model?.split('-')[0] || 'unknown',
+  };
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -82,22 +58,32 @@ export async function GET(request: Request) {
   try {
     switch (action) {
       case 'getPhoneNumbers':
-        const phoneNumbersListResponse = await client.phoneNumber.list() as PhoneNumberListResponse;
-        const phoneNumbersList = transformPhoneNumbers(phoneNumbersListResponse);
-        return NextResponse.json({ phoneNumbers: phoneNumbersList });
+        const phoneNumbersResponse = await retellClient.get('/list-phone-numbers');
+        const phoneNumbers: PhoneNumber[] = phoneNumbersResponse.data.map(transformPhoneNumber);
+        return NextResponse.json({ phoneNumbers });
+      
+      case 'getAgents':
+        const agentsResponse = await retellClient.get('/list-agents');
+        const agents: Agent[] = agentsResponse.data.map(transformAgent);
+        return NextResponse.json({ agents });
+
+      case 'getLLMs':
+        const llmsResponse = await retellClient.get('/list-retell-llms');
+        const llms: LLM[] = llmsResponse.data.map(transformLLM);
+        return NextResponse.json({ llms });
       
       default:
-        const [agentsResponse, phoneNumbersResponse, llmsResponse] = await Promise.all([
-          client.agent.list() as Promise<AgentListResponse>,
-          client.phoneNumber.list() as Promise<PhoneNumberListResponse>,
-          client.llm.list() as Promise<LLMListResponse>
+        const [allAgentsResponse, allPhoneNumbersResponse, allLLMsResponse] = await Promise.all([
+          retellClient.get('/list-agents'),
+          retellClient.get('/list-phone-numbers'),
+          retellClient.get('/list-retell-llms')
         ]);
 
-        const agents = transformAgents(agentsResponse);
-        const phoneNumbers = transformPhoneNumbers(phoneNumbersResponse);
-        const llms = transformLLMs(llmsResponse);
+        const allAgents: Agent[] = allAgentsResponse.data.map(transformAgent);
+        const allPhoneNumbers: PhoneNumber[] = allPhoneNumbersResponse.data.map(transformPhoneNumber);
+        const allLLMs: LLM[] = allLLMsResponse.data.map(transformLLM);
 
-        return NextResponse.json({ agents, phoneNumbers, llms });
+        return NextResponse.json({ agents: allAgents, phoneNumbers: allPhoneNumbers, llms: allLLMs });
     }
   } catch (error) {
     console.error('Error fetching Retell data:', error);
@@ -106,60 +92,28 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const body = await request.json();
+  const { action, ...data } = body;
+
   try {
-    const apiKey = process.env.RETELL_API_KEY;
-    if (!apiKey) {
-      throw new Error('RETELL_API_KEY is not set');
-    }
-
-    const body = await request.json();
-    const { action, ...data } = body;
-
     switch (action) {
       case 'initiateCall':
-        const { agentId, phoneNumberId } = data;
-        const response = await fetch('https://api.retellai.com/v2/create-phone-call', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            override_agent_id: agentId,
-            phone_number_id: phoneNumberId,
-          }),
+        const { agentId, fromNumber, toNumber } = data;
+        const response = await retellClient.post('/create-phone-call', {
+          agent_id: agentId,
+          from_number: fromNumber,
+          to_number: toNumber,
         });
 
-        if (!response.ok) {
+        // Modifions cette partie pour accepter 201 comme un statut de succès
+        if (response.status !== 200 && response.status !== 201) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const callData = await response.json();
-        return NextResponse.json(callData);
+        return NextResponse.json(response.data);
 
       default:
-        const { from_number, to_number, override_agent_id, metadata, retell_llm_dynamic_variables } = data;
-        const defaultResponse = await fetch('https://api.retellai.com/v2/create-phone-call', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from_number,
-            to_number,
-            override_agent_id,
-            metadata,
-            retell_llm_dynamic_variables,
-          }),
-        });
-
-        if (!defaultResponse.ok) {
-          throw new Error(`HTTP error! status: ${defaultResponse.status}`);
-        }
-
-        const defaultData = await defaultResponse.json();
-        return NextResponse.json(defaultData);
+        throw new Error('Invalid action');
     }
   } catch (error) {
     console.error('Error processing Retell request:', error);

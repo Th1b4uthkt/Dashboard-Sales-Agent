@@ -1,11 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface Agent {
-  id: string;
-  name: string;
-  llm_id: string;
-}
+import { Agent } from '@/types/retell';
 
 interface AgentListProps {
   agents: Agent[];
