@@ -20,7 +20,8 @@ export async function initiateCall(agentId: string, fromNumber: string, prospect
       action: 'initiateCall', 
       agentId, 
       fromNumber, 
-      toNumber: fullProspectNumber 
+      toNumber: fullProspectNumber,
+      prospectData: prospect
     }),
   });
 
