@@ -35,6 +35,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useToast } from "@/hooks/use-toast"
 import { AuthModal } from '@/components/auth/AuthModal'
 import { logout } from '@/app/actions/auth'
+import { useRouter } from 'next/navigation'
 
 interface DashboardProps {
   children: React.ReactNode
@@ -52,36 +53,47 @@ export function Dashboard({ children }: DashboardProps) {
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           setUser({
             email: session.user.email || '',
             user_metadata: session.user.user_metadata
           });
           toast({ title: "Signed in successfully" });
+          router.push('/dashboard');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           toast({ title: "Signed out successfully" });
+          router.push('/');
         }
       }
     );
 
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser({
+          email: session.user.email || '',
+          user_metadata: session.user.user_metadata
+        });
+      }
+    });
+
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, toast]);
+  }, [supabase, toast, router]);
 
   const handleLogout = async () => {
     const result = await logout();
     if ('error' in result) {
       toast({ title: "Error signing out", description: result.error, variant: "destructive" });
-    } else {
-      // La redirection est gérée dans la fonction logout
-      toast({ title: "Signed out successfully" });
     }
+    // Redirection is handled in the onAuthStateChange listener
   };
 
   const menuItems = [
@@ -183,18 +195,12 @@ export function Dashboard({ children }: DashboardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="overflow-hidden rounded-full"
+                  className="relative h-8 w-8 rounded-full"
                 >
                   {user ? (
-                    <Image
-                      src={user.user_metadata.avatar_url || "/placeholder-user.jpg"}
-                      width={36}
-                      height={36}
-                      alt="Avatar"
-                      className="overflow-hidden rounded-full"
-                    />
+                    <UserCheck className="h-6 w-6 text-green-500" />
                   ) : (
-                    <UserCheck className="h-6 w-6" />
+                    <UserCheck className="h-6 w-6 text-red-500" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
