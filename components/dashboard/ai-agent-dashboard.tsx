@@ -34,7 +34,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useToast } from "@/hooks/use-toast"
 import { AuthModal } from '@/components/auth/AuthModal'
 import { logout } from '@/app/actions/auth'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation'  // Commenté car non utilisé actuellement
 
 interface DashboardProps {
   children: React.ReactNode
@@ -52,47 +52,42 @@ export function Dashboard({ children }: DashboardProps) {
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
-  const router = useRouter();
+  // const router = useRouter();  // Commenté car non utilisé actuellement
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
-          setUser({
+          const userData = {
             email: session.user.email || '',
             user_metadata: session.user.user_metadata
-          });
+          };
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
           toast({ title: "Signed in successfully" });
-          router.push('/dashboard');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          localStorage.removeItem('user');
           toast({ title: "Signed out successfully" });
-          router.push('/');
         }
       }
     );
 
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser({
-          email: session.user.email || '',
-          user_metadata: session.user.user_metadata
-        });
-      }
-    });
-
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, toast, router]);
+  }, [supabase, toast]);
 
   const handleLogout = async () => {
     const result = await logout();
     if ('error' in result) {
       toast({ title: "Error signing out", description: result.error, variant: "destructive" });
     }
-    // Redirection is handled in the onAuthStateChange listener
   };
 
   const menuItems = [

@@ -48,3 +48,9 @@ export async function logout() {
   }
   redirect('/login')
 }
+
+export async function getSession() {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session
+}

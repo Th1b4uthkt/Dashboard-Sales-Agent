@@ -1,27 +1,25 @@
 import { Prospect } from '@/types/retell';
 
 export async function getPhoneNumbers() {
-  const response = await fetch('/api/retell?action=getPhoneNumbers');
+  const response = await fetch('/api/retell/phone-numbers');
   if (!response.ok) {
     throw new Error('Failed to fetch phone numbers');
   }
-  const data = await response.json();
-  return data.phoneNumbers;
+  return await response.json();
 }
 
-export async function initiateCall(agentId: string, fromNumber: string, prospect: Prospect) {
-  const fullProspectNumber = `${prospect.country_code}${prospect.phone}`;
-  const response = await fetch('/api/retell', {
+export async function initiateCall(fromNumber: string, toNumber: string, prospectData: Prospect) {
+  const response = await fetch('/api/retell/create-call', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ 
-      action: 'initiateCall', 
-      agentId, 
-      fromNumber, 
-      toNumber: fullProspectNumber,
-      prospectData: prospect
+    body: JSON.stringify({
+      from_number: fromNumber,
+      to_number: toNumber,
+      metadata: {
+        prospect: prospectData,
+      },
     }),
   });
 
@@ -29,5 +27,5 @@ export async function initiateCall(agentId: string, fromNumber: string, prospect
     throw new Error('Failed to initiate call');
   }
 
-  return response.json();
+  return await response.json();
 }
