@@ -23,42 +23,71 @@ export default function handler(req: NextApiRequest, res: ExtendedNextApiRespons
     const httpServer: ServerWithIO = res.socket.server;
     const io = new SocketIOServer(httpServer, {
       path: '/api/retell/websocket',
+      cors: {
+        origin: 'https://www.ai-mentor.help',
+        methods: ['GET', 'POST'],
+      },
     });
 
     io.on('connection', (socket) => {
       console.log('New WebSocket connection');
 
+      // Handle incoming events from the client
       socket.on('config', (config) => {
         console.log('Received config event:', config);
-        // Implement config handling logic here
+        socket.emit('config_ack', { status: 'success' });
       });
 
       socket.on('response', (response) => {
         console.log('Received response event:', response);
-        // Implement response handling logic here
+        // Forward the response to Retell
       });
 
       socket.on('agent_interrupt', (interrupt) => {
         console.log('Received agent_interrupt event:', interrupt);
-        // Implement agent interrupt handling logic here
+        // Forward the interrupt to Retell
       });
 
       socket.on('tool_call_invocation', (toolCall) => {
         console.log('Received tool_call_invocation event:', toolCall);
-        // Implement tool call invocation handling logic here
+        // Handle tool call invocation
       });
 
       socket.on('tool_call_result', (result) => {
         console.log('Received tool_call_result event:', result);
-        // Implement tool call result handling logic here
+        // Handle tool call result
       });
 
       socket.on('metadata', (metadata) => {
         console.log('Received metadata event:', metadata);
-        // Implement metadata handling logic here
+        // Handle metadata
       });
 
-      // Implement other event handlers as needed
+      // Handle events from Retell
+      socket.on('ping_pong', (data) => {
+        console.log('Received ping_pong from Retell:', data);
+        socket.emit('ping_pong', { timestamp: Date.now() });
+      });
+
+      socket.on('update_only', (update) => {
+        console.log('Received update_only from Retell:', update);
+        socket.emit('transcript_update', update);
+      });
+
+      socket.on('response_required', (data) => {
+        console.log('Received response_required from Retell:', data);
+        socket.emit('llm_request', data);
+      });
+
+      socket.on('reminder_required', (data) => {
+        console.log('Received reminder_required from Retell:', data);
+        socket.emit('llm_request', data);
+      });
+
+      socket.on('call_ended', (data) => {
+        console.log('Received call_ended from Retell:', data);
+        socket.emit('call_ended', data);
+      });
     });
 
     res.socket.server.io = io;

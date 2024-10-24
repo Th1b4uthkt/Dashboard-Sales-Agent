@@ -56,10 +56,11 @@ export function useWebSocket(url: string) {
     return cleanup;
   }, [connect]);
 
-  const sendMessage = useCallback((data: string) => {
+  const sendMessage = useCallback((data: string | object) => {
     if (socket && isConnected) {
       try {
-        socket.send(data);
+        const message = typeof data === 'string' ? data : JSON.stringify(data);
+        socket.send(message);
       } catch (error) {
         console.error('Error sending WebSocket message:', error);
       }

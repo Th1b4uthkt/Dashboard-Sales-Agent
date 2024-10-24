@@ -1,46 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PhoneIcon } from "lucide-react";
 
-interface PhoneNumber {
-  phone_number: string;
-  phone_number_pretty: string;
-  nickname: string | null;
-}
-
 interface RetellCallInitiatorProps {
   onCallInitiated: (callId: string) => void;
 }
 
 export function RetellCallInitiator({ onCallInitiated }: RetellCallInitiatorProps) {
-  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
-  const [fromNumber, setFromNumber] = useState('');
-  const [toNumber, setToNumber] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [fromNumber, setFromNumber] = useState<string>('');
+  const [toNumber, setToNumber] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchPhoneNumbers = async () => {
-      try {
-        const response = await fetch('/api/retell/phone-numbers');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch phone numbers: ${response.statusText}`);
-        }
-        const data = await response.json();
-        setPhoneNumbers(data);
-      } catch (error) {
-        console.error('Error fetching phone numbers:', error);
-        setError('Failed to load phone numbers. Please try again later.');
-      }
-    };
-
-    fetchPhoneNumbers();
-  }, []);
 
   const handleInitiateCall = async () => {
     if (!fromNumber || !toNumber) {
@@ -79,36 +54,48 @@ export function RetellCallInitiator({ onCallInitiated }: RetellCallInitiatorProp
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Initiate Simple Call</CardTitle>
+    <Card className="w-full">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold">Initiate Simple Call</CardTitle>
+        <p className="text-sm text-muted-foreground">Start a call with a single number</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Select onValueChange={setFromNumber}>
-          <SelectTrigger>
+        <Select onValueChange={(value) => setFromNumber(value)}>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a from number" />
           </SelectTrigger>
           <SelectContent>
-            {phoneNumbers.map((phoneNumber) => (
-              <SelectItem key={phoneNumber.phone_number} value={phoneNumber.phone_number}>
-                {phoneNumber.nickname || phoneNumber.phone_number_pretty}
-              </SelectItem>
-            ))}
+            <SelectItem key="+18137012050" value="+18137012050">+1 813-701-2050</SelectItem>
+            {/* Add more numbers as needed */}
           </SelectContent>
         </Select>
         <Input
           placeholder="To Number (e.g., +12137774445)"
           value={toNumber}
           onChange={(e) => setToNumber(e.target.value)}
+          className="w-full"
         />
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && (
+          <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+            {error}
+          </div>
+        )}
         <Button 
           onClick={handleInitiateCall} 
-          disabled={isLoading || !fromNumber || !toNumber}
-          className="w-full"
+          disabled={isLoading}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
         >
-          <PhoneIcon className="mr-2 h-4 w-4" />
-          {isLoading ? 'Initiating Call...' : 'Initiate Call'}
+          {isLoading ? (
+            <>
+              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Initiating Call...
+            </>
+          ) : (
+            <>
+              <PhoneIcon className="mr-2 h-4 w-4" />
+              Initiate Call
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>

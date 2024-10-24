@@ -14,7 +14,7 @@ interface PhoneNumber {
 }
 
 interface ProspectCallInitiatorProps {
-  onCallInitiated: (callId: string) => void;
+  onCallInitiated: (callId: string, token: string) => void;
 }
 
 export function ProspectCallInitiator({ onCallInitiated }: ProspectCallInitiatorProps) {
@@ -79,7 +79,7 @@ export function ProspectCallInitiator({ onCallInitiated }: ProspectCallInitiator
       }
 
       const data = await response.json();
-      onCallInitiated(data.call_id);
+      onCallInitiated(data.call_id, data.access_token);
     } catch (error) {
       console.error('Failed to initiate call:', error);
       setError('Failed to initiate call. Please try again.');
@@ -89,13 +89,14 @@ export function ProspectCallInitiator({ onCallInitiated }: ProspectCallInitiator
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Call Prospect</CardTitle>
+    <Card className="w-full">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-2xl font-bold">Call Prospect</CardTitle>
+        <p className="text-sm text-muted-foreground">Initiate a call with a prospect</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <Select onValueChange={setFromNumber}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a from number" />
           </SelectTrigger>
           <SelectContent>
@@ -108,7 +109,7 @@ export function ProspectCallInitiator({ onCallInitiated }: ProspectCallInitiator
         </Select>
 
         <Select onValueChange={(value) => setSelectedProspect(prospects.find(p => p.id.toString() === value) || null)}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a prospect" />
           </SelectTrigger>
           <SelectContent>
@@ -120,14 +121,27 @@ export function ProspectCallInitiator({ onCallInitiated }: ProspectCallInitiator
           </SelectContent>
         </Select>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && (
+          <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+            {error}
+          </div>
+        )}
         <Button 
           onClick={handleInitiateCall} 
           disabled={isLoading || !fromNumber || !selectedProspect}
-          className="w-full"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
         >
-          <PhoneIcon className="mr-2 h-4 w-4" />
-          {isLoading ? 'Initiating Call...' : 'Call Prospect'}
+          {isLoading ? (
+            <>
+              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              Initiating Call...
+            </>
+          ) : (
+            <>
+              <PhoneIcon className="mr-2 h-4 w-4" />
+              Call Prospect
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>

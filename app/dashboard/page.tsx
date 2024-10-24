@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { DashboardOverview } from "@/components/dashboard/dashboard-overview"
 
 export default async function DashboardPage() {
   const supabase = createClient()
@@ -9,5 +10,5 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  return <div>Dashboard content for {user.email}</div>
+  return <DashboardOverview />
 }

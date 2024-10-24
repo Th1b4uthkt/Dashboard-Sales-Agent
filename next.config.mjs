@@ -14,6 +14,14 @@ const nextConfig = {
   images: {
     domains: ['flagcdn.com'],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/retell/websocket/:callId',
+        destination: '/api/retell/websocket/:callId',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
