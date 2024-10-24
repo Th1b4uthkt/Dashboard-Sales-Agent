@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { User, Mail, Phone, Calendar, MapPin, Briefcase, Settings, Tag } from 'lucide-react'
 import ReactCountryFlag from "react-country-flag"
 import { Prospect, Tag as TagType } from '@/types/prospect'
+import { ProspectDetailsModal } from './ProspectDetailsModal'
 
 interface ProspectsListProps {
   prospects: Prospect[]
@@ -31,7 +30,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 }
 
 const CountryFlag = ({ countryCode }: { countryCode: string }) => {
-  // Convertir le code de pays téléphonique en code ISO 2
   const isoCode = getISOCode(countryCode);
   
   return (
@@ -50,7 +48,6 @@ const CountryFlag = ({ countryCode }: { countryCode: string }) => {
   );
 };
 
-// Fonction pour convertir le code de pays téléphonique en code ISO 2
 const getISOCode = (phoneCode: string): string => {
   const codeMap: { [key: string]: string } = {
     '+33': 'FR',
@@ -58,13 +55,14 @@ const getISOCode = (phoneCode: string): string => {
     '+7': 'RU',
     '+32': 'BE',
     '+1': 'US',
-    // Ajoutez d'autres mappings selon vos besoins
   };
-  return codeMap[phoneCode] || 'UN'; // 'UN' pour inconnu si le code n'est pas trouvé
+  return codeMap[phoneCode] || 'UN';
 };
 
 export default function ProspectsList({ prospects, searchTerm }: ProspectsListProps) {
   const [filteredProspects, setFilteredProspects] = useState(prospects)
+  const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     const filtered = prospects.filter(prospect =>
@@ -74,6 +72,12 @@ export default function ProspectsList({ prospects, searchTerm }: ProspectsListPr
     )
     setFilteredProspects(filtered)
   }, [prospects, searchTerm])
+
+  const handleUpdateProspect = (updatedProspect: Prospect) => {
+    setFilteredProspects(prevProspects => 
+      prevProspects.map(p => p.id === updatedProspect.id ? updatedProspect : p)
+    )
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -153,47 +157,16 @@ export default function ProspectsList({ prospects, searchTerm }: ProspectsListPr
                   <Button size="sm" variant="outline"><Mail className="h-4 w-4" /></Button>
                   <Button size="sm" variant="outline"><Phone className="h-4 w-4" /></Button>
                   <Button size="sm" variant="outline"><Calendar className="h-4 w-4" /></Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">Details</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle className="text-2xl font-semibold">Prospect Details</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid gap-6 py-4">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-                            <User className="w-10 h-10" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold">{`${prospect.first_name} ${prospect.last_name}`}</h3>
-                            <p className="text-sm text-muted-foreground">{prospect.email}</p>
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <h4 className="font-semibold">Contact Information</h4>
-                          <p className="flex items-center"><Phone className="w-4 h-4 mr-2" />{prospect.phone}</p>
-                          <p className="flex items-center"><MapPin className="w-4 h-4 mr-2" />{prospect.address}</p>
-                          <p className="flex items-center">
-                            <CountryFlag countryCode={prospect.country_code} />
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">Status</h4>
-                          <StatusBadge status={prospect.status} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">Notes</h4>
-                          <Textarea placeholder="Add notes here..." className="min-h-[100px]" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">Interaction History</h4>
-                          <p className="text-sm text-muted-foreground">No interactions recorded yet.</p>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      setSelectedProspect(prospect)
+                      setIsModalOpen(true)
+                    }}
+                  >
+                    Details
+                  </Button>
                 </div>
               </TableCell>
               <TableCell>
@@ -207,6 +180,14 @@ export default function ProspectsList({ prospects, searchTerm }: ProspectsListPr
           ))}
         </TableBody>
       </Table>
+      {selectedProspect && (
+        <ProspectDetailsModal
+          prospect={selectedProspect}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onUpdate={handleUpdateProspect}
+        />
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { parse } from 'csv-parse/sync'
+import { Prospect, Tag } from '@/types/prospect'
 
 const ProspectSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -177,4 +178,74 @@ export async function importProspects(formData: FormData) {
   }
   
   return { success: true, message: 'All records imported successfully.' }
+}
+
+export async function updateProspect(prospectData: Prospect) {
+  const supabase = createClient()
+
+  try {
+    const { data, error } = await supabase
+      .from('prospects')
+      .update({
+        first_name: prospectData.first_name,
+        last_name: prospectData.last_name,
+        email: prospectData.email,
+        country_code: prospectData.country_code,
+        phone: prospectData.phone,
+        address: prospectData.address,
+        status: prospectData.status,
+        provider: prospectData.provider,
+      })
+      .eq('id', prospectData.id)
+      .select()
+
+    if (error) {
+      console.error('Error updating prospect:', error)
+      return { success: false, error: error.message }
+    }
+
+    // Update tags
+    await updateProspectTags(prospectData.id, prospectData.tags)
+
+    revalidatePath('/dashboard/prospects')
+    return { success: true, data }
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+async function updateProspectTags(prospectId: number, tags: Tag[]) {
+  const supabase = createClient()
+
+  // Supprimer toutes les associations existantes
+  await supabase
+    .from('prospect_tags')
+    .delete()
+    .eq('prospect_id', prospectId)
+
+  for (const tag of tags) {
+    let tagId: string;
+    if (tag.id.startsWith('temp_')) {
+      // C'est un nouveau tag, créons-le
+      const { data: newTag, error } = await supabase
+        .from('tags')
+        .insert({ name: tag.name })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating new tag:', error)
+        continue
+      }
+      tagId = newTag.id
+    } else {
+      tagId = tag.id
+    }
+
+    // Ajouter la nouvelle association
+    await supabase
+      .from('prospect_tags')
+      .insert({ prospect_id: prospectId, tag_id: tagId })
+  }
 }
