@@ -29,7 +29,7 @@ export function RetellCallInitiator({ onCallInitiated }: RetellCallInitiatorProp
       try {
         const response = await fetch('/api/retell/phone-numbers');
         if (!response.ok) {
-          throw new Error('Failed to fetch phone numbers');
+          throw new Error(`Failed to fetch phone numbers: ${response.statusText}`);
         }
         const data = await response.json();
         setPhoneNumbers(data);
@@ -63,13 +63,15 @@ export function RetellCallInitiator({ onCallInitiated }: RetellCallInitiatorProp
       });
 
       if (!response.ok) {
-        throw new Error('Failed to initiate call');
+        const errorData = await response.json();
+        throw new Error(`Failed to initiate call: ${errorData.message || response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Call initiated successfully:', data);
       onCallInitiated(data.call_id);
-    } catch (error) {
-      console.error('Failed to initiate call:', error);
+    } catch (error: unknown) {
+      console.error('Error initiating call:', error instanceof Error ? error.message : String(error));
       setError('Failed to initiate call. Please try again.');
     } finally {
       setIsLoading(false);

@@ -6,20 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { User, Mail, Phone, Calendar, MapPin, Briefcase, Settings } from 'lucide-react'
+import { User, Mail, Phone, Calendar, MapPin, Briefcase, Settings, Tag } from 'lucide-react'
 import ReactCountryFlag from "react-country-flag"
-
-interface Prospect {
-  id: number
-  first_name: string
-  last_name: string
-  email: string
-  country_code: string
-  phone: string
-  address: string
-  status: string
-  provider: string
-}
+import { Prospect, Tag as TagType } from '@/types/prospect'
 
 interface ProspectsListProps {
   prospects: Prospect[]
@@ -81,7 +70,7 @@ export default function ProspectsList({ prospects, searchTerm }: ProspectsListPr
     const filtered = prospects.filter(prospect =>
       Object.values(prospect).some(value =>
         value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      ) || prospect.tags.some(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     setFilteredProspects(filtered)
   }, [prospects, searchTerm])
@@ -119,6 +108,11 @@ export default function ProspectsList({ prospects, searchTerm }: ProspectsListPr
             <TableHead className="text-white font-bold">
               <span className="flex items-center">
                 <Settings className="mr-2 h-4 w-4" /> Actions
+              </span>
+            </TableHead>
+            <TableHead className="text-white font-bold">
+              <span className="flex items-center">
+                <Tag className="mr-2 h-4 w-4" /> Tags
               </span>
             </TableHead>
           </TableRow>
@@ -200,6 +194,13 @@ export default function ProspectsList({ prospects, searchTerm }: ProspectsListPr
                       </div>
                     </DialogContent>
                   </Dialog>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {prospect.tags.map((tag: TagType) => (
+                    <Badge key={tag.id} style={{backgroundColor: tag.color}}>{tag.name}</Badge>
+                  ))}
                 </div>
               </TableCell>
             </TableRow>

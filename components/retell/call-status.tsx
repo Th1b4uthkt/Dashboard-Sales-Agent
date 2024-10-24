@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useWebSocket } from '@/hooks/use-websocket';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,67 +10,104 @@ interface CallStatusProps {
   onEndCall: () => void;
 }
 
-interface WebSocketMessage {
-  type: string;
-  status?: string;
-  speaker?: string;
-  text?: string;
+interface TranscriptUpdate {
+  role: string;
+  content: string;
 }
 
-// Définissons un type plus spécifique pour custom_analysis_data
-type CustomAnalysisData = {
-  [key: string]: string | number | boolean | null | undefined;
-};
-
-interface AnalysisData {
-  call_summary?: string;
-  user_sentiment?: string;
-  call_successful?: boolean;
-  custom_analysis_data?: CustomAnalysisData;
-  // Ajoutez d'autres champs selon vos besoins spécifiques
+interface ResponseRequired {
+  prompt: string;
 }
 
 export function CallStatus({ callId, onEndCall }: CallStatusProps) {
-  const [status, setStatus] = useState('Connecting...');
-  const [transcript, setTranscript] = useState('');
-  const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [status, setStatus] = useState('Initializing...');
+  const [transcript, setTranscript] = useState<string[]>([]);
+  const [llmResponse, setLlmResponse] = useState<string>('');
+  const [analysis, setAnalysis] = useState<string>('');
+  const [socket, setSocket] = useState<WebSocket | null>(null);
 
-  const { lastMessage, sendMessage, isConnected } = useWebSocket(`wss://api.retellai.com/ws/llm/${callId}`);
+  const handleTranscriptUpdate = useCallback((update: TranscriptUpdate) => {
+    setTranscript(prev => [...prev, `${update.role}: ${update.content}`]);
+  }, []);
 
-  const fetchPostCallAnalysis = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/retell/analysis/${callId}`);
-      const data: AnalysisData = await response.json();
-      setAnalysis(data);
-    } catch (error) {
-      console.error('Error fetching post-call analysis:', error);
-    }
+  const handleResponseRequired = useCallback((data: ResponseRequired) => {
+    setLlmResponse(data.prompt);
+  }, []);
+
+  useEffect(() => {
+    const newSocket = new WebSocket(`wss://your-websocket-url/${callId}`);
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
   }, [callId]);
 
   useEffect(() => {
-    if (lastMessage) {
-      const message = lastMessage as WebSocketMessage;
-      switch (message.type) {
-        case 'status':
-          setStatus(message.status || 'Unknown');
-          break;
-        case 'transcript':
-          setTranscript(prev => prev + formatTranscript(message));
-          break;
-        case 'call_ended':
-          setStatus('Call Ended');
-          fetchPostCallAnalysis();
-          break;
-      }
-    }
-  }, [lastMessage, callId, fetchPostCallAnalysis]);
+    if (socket) {
+      socket.onopen = () => {
+        setStatus('Connected');
+        // Send initial config event
+        socket.send(JSON.stringify({
+          response_type: 'config',
+          config: {
+            auto_reconnect: true,
+            call_details: true,
+            transcript_with_tool_calls: true
+          }
+        }));
 
-  const formatTranscript = (message: WebSocketMessage): string => {
-    return `${message.speaker}: ${message.text}\n`;
-  };
+        // Send initial response event
+        socket.send(JSON.stringify({
+          response_type: 'response',
+          response_id: 0,
+          content: 'Hello, how can I assist you today?',
+          content_complete: true
+        }));
+      };
+
+      socket.onmessage = (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
+        switch (data.interaction_type) {
+          case 'ping_pong':
+            socket.send(JSON.stringify({
+              response_type: 'ping_pong',
+              timestamp: Date.now()
+            }));
+            break;
+          case 'call_details':
+            console.log('Call details:', data.call);
+            break;
+          case 'update_only':
+            handleTranscriptUpdate(data);
+            break;
+          case 'response_required':
+          case 'reminder_required':
+            handleResponseRequired(data);
+            break;
+          case 'call_ended':
+            setStatus('Call Ended');
+            setAnalysis(JSON.stringify(data.analysis, null, 2));
+            break;
+        }
+      };
+
+      socket.onclose = () => {
+        setStatus('Disconnected');
+        setSocket(null);
+      };
+
+      socket.onerror = (event: Event) => {
+        console.error('WebSocket error:', event);
+        setStatus('Error');
+      };
+    }
+  }, [socket, handleResponseRequired, handleTranscriptUpdate, callId]);
 
   const handleEndCall = () => {
-    sendMessage(JSON.stringify({ type: 'end_call' }));
+    if (socket) {
+      socket.send(JSON.stringify({ type: 'end_call' }));
+    }
     onEndCall();
   };
 
@@ -86,21 +122,27 @@ export function CallStatus({ callId, onEndCall }: CallStatusProps) {
             <span>Status:</span>
             <Badge variant="outline">{status}</Badge>
           </div>
-          <Button onClick={handleEndCall} disabled={!isConnected || status === 'Call Ended'}>
+          <Button onClick={handleEndCall} disabled={status === 'Call Ended'}>
             End Call
           </Button>
         </div>
         <div>
           <h4 className="text-sm font-semibold mb-2">Transcript</h4>
           <pre className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {transcript || 'No transcript available yet.'}
+            {transcript.join('\n') || 'No transcript available yet.'}
+          </pre>
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold mb-2">LLM Response</h4>
+          <pre className="text-sm text-muted-foreground whitespace-pre-wrap">
+            {llmResponse || 'No LLM response yet.'}
           </pre>
         </div>
         {analysis && (
           <div>
             <h4 className="text-sm font-semibold mb-2">Call Analysis</h4>
             <pre className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {JSON.stringify(analysis, null, 2)}
+              {analysis}
             </pre>
           </div>
         )}

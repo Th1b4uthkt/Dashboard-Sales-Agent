@@ -1,9 +1,9 @@
-import axios from 'axios';
+import Retell from 'retell-sdk';
 
-export const retellClient = axios.create({
-  baseURL: 'https://api.retellai.com',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${process.env.RETELL_API_KEY}`
-  }
+if (!process.env.RETELL_API_KEY) {
+  throw new Error('RETELL_API_KEY is not defined in the environment variables');
+}
+
+export const retellClient = new Retell({
+  apiKey: process.env.RETELL_API_KEY as string,
 });

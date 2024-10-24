@@ -4,18 +4,7 @@ import { useState } from 'react'
 import { Input } from "@/components/ui/input"
 import { Search } from 'lucide-react'
 import ProspectsList from './ProspectsList'
-
-interface Prospect {
-  id: number
-  first_name: string
-  last_name: string
-  email: string
-  country_code: string
-  phone: string
-  address: string
-  status: string
-  provider: string
-}
+import { Prospect } from '@/types/prospect'
 
 export default function ProspectSearch({ initialProspects }: { initialProspects: Prospect[] }) {
   const [searchTerm, setSearchTerm] = useState('')

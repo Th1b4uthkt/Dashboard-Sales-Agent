@@ -9,14 +9,22 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus } from 'lucide-react'
 import { addProspect } from '@/app/actions/prospects'
+import { MultiSelect } from "@/components/ui/multi-select"
 
 export default function ProspectForm() {
   const [open, setOpen] = useState(false)
+  const [tags, setTags] = useState<string[]>([])  // Initialiser avec un tableau vide
   const router = useRouter()
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    
+    // Ajouter les tags seulement s'ils existent
+    if (tags && tags.length > 0) {
+      tags.forEach(tag => formData.append('tags', tag))
+    }
+    
     const result = await addProspect(formData)
     if (result.success) {
       setOpen(false)
@@ -25,6 +33,11 @@ export default function ProspectForm() {
       console.error(result.error)
     }
   }
+
+  // Ajoutez cette fonction pour gérer les nouveaux tags
+  const handleTagChange = (newTags: string[]) => {
+    setTags(newTags);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -88,6 +101,16 @@ export default function ProspectForm() {
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="provider" className="text-right">Provider</Label>
             <Input id="provider" name="provider" className="col-span-3" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="tags" className="text-right">Tags</Label>
+            <MultiSelect
+              className="col-span-3"
+              placeholder="Type a tag and press Enter"
+              selected={tags}
+              onChange={handleTagChange}
+              createable={true}
+            />
           </div>
           <Button type="submit" className="mt-4">Save Prospect</Button>
         </form>
