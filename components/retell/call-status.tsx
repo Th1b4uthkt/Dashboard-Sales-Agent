@@ -25,8 +25,6 @@ export function CallStatus({ callId, onEndCall }: CallStatusProps) {
 
   const handleResponseRequired = useCallback((data: { prompt: string; response_id: string }) => {
     setLlmResponse(data.prompt);
-    // Here you would typically generate a response using your LLM
-    // For this example, we'll just echo the prompt
     sendMessage({
       response_type: 'response',
       response_id: data.response_id,

@@ -13,10 +13,16 @@ export function createClient() {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options })
+          // Ensure this is only called in a Server Action or Route Handler
+          if (typeof window === 'undefined') {
+            cookieStore.set({ name, value, ...options })
+          }
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options })
+          // Ensure this is only called in a Server Action or Route Handler
+          if (typeof window === 'undefined') {
+            cookieStore.set({ name, value: '', ...options })
+          }
         },
       },
     }

@@ -1,13 +1,13 @@
 import Image from "next/image";
-import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
 
 export default async function Home() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    redirect('/dashboard')
+    redirect('/dashboard');
   }
 
   return (

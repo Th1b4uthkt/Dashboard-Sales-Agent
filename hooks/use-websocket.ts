@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export function useWebSocket(url: string) {
+export function useWebSocket(callId: string) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [lastMessage, setLastMessage] = useState<any>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
+
+  // Use the correct WebSocket URL for Retell
+  const url = `wss://www.ai-mentor.help/api/retell/websockets/${callId}`;
 
   const connect = useCallback(() => {
     const ws = new WebSocket(url);
@@ -38,6 +41,7 @@ export function useWebSocket(url: string) {
       try {
         const data = JSON.parse(event.data);
         setLastMessage(data);
+        // Handle additional events if needed
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
